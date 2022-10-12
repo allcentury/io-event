@@ -19,6 +19,7 @@
 # THE SOFTWARE.
 
 require_relative '../interrupt'
+require_relative '../support'
 
 module IO::Event
 	module Selector
@@ -148,7 +149,7 @@ module IO::Event
 				waiter&.invalidate
 			end
 			
-			if IO.const_defined?(:Buffer)
+			if IO::Event::Support.buffer?
 				EAGAIN = Errno::EAGAIN::Errno
 				
 				def io_read(fiber, io, buffer, length)

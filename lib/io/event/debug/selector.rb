@@ -80,7 +80,7 @@ module IO::Event
 				@selector.io_wait(fiber, io, events)
 			end
 			
-			if IO.const_defined?(:Buffer)
+			if IO::Event::Support.buffer?
 				def io_read(fiber, io, buffer, length)
 					@selector.io_read(fiber, io, buffer, length)
 				end

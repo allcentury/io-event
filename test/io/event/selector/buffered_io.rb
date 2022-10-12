@@ -18,11 +18,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-return unless IO.const_defined?(:Buffer)
-
 require 'io/event'
 require 'io/event/selector'
 require 'socket'
+
+return unless IO::Event::Support.buffer?
 
 BufferedIO = Sus::Shared("buffered io") do
 	with 'a pipe' do

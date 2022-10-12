@@ -18,11 +18,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-return unless IO.const_defined?(:Buffer)
-
 require 'io/event'
 require 'io/event/selector'
 require 'tempfile'
+
+return unless IO::Event::Support.buffer?
 
 FileIO = Sus::Shared("file io") do
 	with 'a file' do
