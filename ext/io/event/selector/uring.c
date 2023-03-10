@@ -460,19 +460,64 @@ static VALUE IO_Event_Selector_URing_io_read_compatible(int argc, VALUE *argv, V
 	return IO_Event_Selector_URing_io_read(self, argv[0], argv[1], argv[2], argv[3], _offset);
 }
 
-static
-int io_write(struct IO_Event_Selector_URing *data, VALUE fiber, int descriptor, char *buffer, size_t length) {
+struct io_write_arguments {
+	struct IO_Event_Selector_URing *data;
+	VALUE fiber;
+	int descriptor;
+	char *buffer;
+	size_t length;
+};
+
+static VALLUE
+io_write_submit(VALUE _argument)
+{
+	struct io_write_arguments *arguments = (struct io_write_arguments*)_argument;
+	struct IO_Event_Selector_URing *data = arguments->data;
+	
 	struct io_uring_sqe *sqe = io_get_sqe(data);
 	
-	if (DEBUG) fprintf(stderr, "io_write:io_uring_prep_write(fiber=%p)\n", (void*)fiber);
-
-	io_uring_prep_write(sqe, descriptor, buffer, length, io_seekable(descriptor));
-	io_uring_sqe_set_data(sqe, (void*)fiber);
+	if (DEBUG) fprintf(stderr, "io_write:io_uring_prep_write(fiber=%p)\n", (void*)arguments->fiber);
+	
+	io_uring_prep_write(sqe, arguments->descriptor, arguments->buffer, arguments->length, io_seekable(arguments->descriptor));
+	io_uring_sqe_set_data(sqe, (void*)arguments->fiber);
 	io_uring_submit_pending(data);
 	
-	int result = RB_NUM2INT(IO_Event_Selector_fiber_transfer(data->backend.loop, 0, NULL));
-	if (DEBUG) fprintf(stderr, "io_write:IO_Event_Selector_fiber_transfer -> %d\n", result);
+	return IO_Event_Selector_fiber_transfer(data->backend.loop, 0, NULL);
+}
 
+static VALUE
+io_write_cancel(VALUE _argument, VALUE exception)
+{
+	struct io_write_arguments *arguments = (struct io_write_arguments*)_argument;
+	struct IO_Event_Selector_URing *data = arguments->data;
+	
+	struct io_uring_sqe *sqe = io_get_sqe(data);
+	
+	if (DEBUG) fprintf(stderr, "io_wait_rescue:io_uring_prep_poll_remove(%p)\n", (void*)arguments->fiber);
+	
+	io_uring_prep_cancel(sqe, (void*)arguments->fiber, 0);
+	io_uring_submit_now(data);
+	
+	rb_exc_raise(exception);
+}
+
+static
+int io_write(struct IO_Event_Selector_URing *data, VALUE fiber, int descriptor, char *buffer, size_t length)
+{
+	struct io_write_arguments arguments = {
+		.data = data,
+		.fiber = fiber,
+		.descriptor = descriptor,
+		.buffer = buffer,
+		.length = length,
+	};
+	
+	int result = RB_NUM2INT(
+		rb_rescue(io_write_submit, (VALUE)&arguments, io_write_cancel, (VALUE)&arguments)
+	);
+	
+	if (DEBUG) fprintf(stderr, "io_write:IO_Event_Selector_fiber_transfer -> %d\n", result);
+	
 	return result;
 }
 
