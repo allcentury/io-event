@@ -33,7 +33,7 @@
 #include <linux/version.h>
 
 enum {
-	DEBUG = 0,
+	DEBUG = 1,
 };
 
 static VALUE IO_Event_Selector_URing = Qnil;
@@ -981,6 +981,8 @@ VALUE IO_Event_Selector_URing_select(VALUE self, VALUE duration) {
 			// This is a blocking operation, we wait for events:
 			result = select_internal_without_gvl(&arguments);
 		}
+		
+		fprintf(stderr, "Result = %d\n", result);
 		
 		// After waiting/flushing the SQ, check if there are any completions:
 		result = select_process_completions(selector);
